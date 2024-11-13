@@ -1,5 +1,6 @@
 package com.example.simple_auth_app
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -35,7 +36,10 @@ fun LoginScreen(modifier: Modifier = Modifier) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf("") }
-    val context = LocalContext.current;
+    val context = LocalContext.current
+    val PREF_NAME = "MyPref"
+    val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    var session by remember { mutableStateOf(prefs.getBoolean("State", false)) }
 
     Column(
         modifier = modifier
@@ -44,6 +48,10 @@ fun LoginScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        if (session){
+            context.startActivity(Intent(context, Home::class.java))
+        }
+
         Text(
             text = "Connexion",
             style = MaterialTheme.typography.titleLarge
@@ -82,6 +90,9 @@ fun LoginScreen(modifier: Modifier = Modifier) {
             onClick = {
                 if (email.isEmpty() || password.isEmpty()) {
                     msg = "Veuillez remplir tous les champs."
+                } else {
+                    prefs.edit().putBoolean("State", true).apply()
+                    context.startActivity(Intent(context, Home::class.java))
                 }
             },
             modifier = Modifier.fillMaxWidth()
