@@ -3,6 +3,7 @@ package com.example.simple_auth_app
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.provider.BaseColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,21 +27,26 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.simple_auth_app.data.Product
+import com.example.simple_auth_app.dbHandler.FeedReaderContract
+import com.example.simple_auth_app.dbHandler.FeedReaderDbHelper
 import com.example.simple_auth_app.ui.theme.Simple_auth_appTheme
 
 class Home : ComponentActivity() {
@@ -61,6 +68,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val PREF_NAME = "MyPref"
     val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    val dbHelper = FeedReaderDbHelper(context)
+    var list by remember { mutableStateOf(_GetAllProdsFromDB(dbHelper)) }
 
     Column(
         modifier = modifier
@@ -86,46 +95,46 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             Text(text = "Se deconnecter")
         }
 
-        ListComposable()
+        Spacer(modifier = Modifier.height(16.dp))
 
+        Button(
+            onClick = {
+                context.startActivity(Intent(context, AddProduct::class.java))
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "Ajouter un produit")
+        }
+
+        ListComposable(modifier = Modifier,  context = context, dbHelper = dbHelper, list = list)
 
     }
 }
 
 @Composable
-fun ListComposable(modifier: Modifier = Modifier) {
-    val list = remember {
-        mutableListOf(
-            Product("Product 1", 10.0, "Description 1", R.drawable.hyperx),
-            Product("Product 2", 20.0, "Description 2", R.drawable.hyperx),
-            Product("Product 3", 30.0, "Description 3", R.drawable.hyperx),
-            Product("Product 4", 40.0, "Description 4", R.drawable.hyperx),
-            Product("Product 5", 50.0, "Description 5", R.drawable.hyperx),
-            Product("Product 6", 60.0, "Description 6", R.drawable.hyperx),
-        )
-    }
+fun ListComposable(modifier: Modifier = Modifier, dbHelper : FeedReaderDbHelper, context: Context, list: List<Product>) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(list) { prod ->
-            ItemComposable(product = prod)
+            ItemComposable(product = prod, dbHelper = dbHelper, context = context)
         }
     }
-
 }
 
+
 @Composable
-fun ItemComposable(modifier: Modifier = Modifier, product: Product) {
-    val context = LocalContext.current
-    val Intent = Intent(context, ProductDescription::class.java)
+fun ItemComposable(modifier: Modifier = Modifier, dbHelper : FeedReaderDbHelper, context: Context, product: Product) {
+    val IntentProdDesc = Intent(context, ProductDescription::class.java)
+    val IntentUpdateProd = Intent(context, UpdateProduct::class.java)
+
     Card(
         modifier = modifier
             .padding(16.dp)
+            .fillMaxWidth()
             .clickable {
-                Intent.putExtra("Prod_Name", product.name);
-                Intent.putExtra("Prod_Price", product.price);
-                Intent.putExtra("Prod_Desc", product.description);
-                Intent.putExtra("Prod_Img", product.imageUrl);
-                context.startActivity(Intent);
-            }
+                IntentProdDesc.putExtra("ProdId", product.id)
+                context.startActivity(IntentProdDesc)
+            },
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier
@@ -135,26 +144,67 @@ fun ItemComposable(modifier: Modifier = Modifier, product: Product) {
         ) {
             Text(
                 text = product.name,
-                fontSize = 24.sp, fontWeight = FontWeight.Bold
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleLarge
             )
 
-            Spacer(modifier = Modifier.padding(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            val imageId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
             Image(
-                painter = painterResource(id = product.imageUrl), contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),
+                painter = painterResource(id = imageId),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .padding(8.dp)
+                    .clip(MaterialTheme.shapes.medium),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.padding(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "$${product.price}",
-                fontSize = 20.sp, fontWeight = FontWeight.Bold
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyLarge
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        dbHelper.deleteData(product.id)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(text = "Supprimer")
+                }
+
+                Button(
+                    onClick = {
+                        IntentUpdateProd.putExtra("ProdId", product.id)
+                        context.startActivity(IntentUpdateProd)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(text = "Mis à jour")
+                }
+            }
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -162,4 +212,34 @@ fun HomeScreenPreview() {
     Simple_auth_appTheme {
         HomeScreen()
     }
+}
+
+private fun _GetAllProdsFromDB(dbHelper: FeedReaderDbHelper): MutableList<Product> {
+    val productList = mutableListOf<Product>()
+
+    productList.clear()
+
+    val cursor = dbHelper.readAllData()
+    with(cursor) {
+        while (moveToNext()) {
+            val itemId = getLong(getColumnIndexOrThrow(BaseColumns._ID))
+            val itemName = getString(getColumnIndexOrThrow(FeedReaderContract.FeedEntry.COLUMN_NAME_NAME))
+            val itemPrice = getDouble(getColumnIndexOrThrow(FeedReaderContract.FeedEntry.COLUMN_NAME_PRICE))
+            val itemDescription = getString(getColumnIndexOrThrow(FeedReaderContract.FeedEntry.COLUMN_NAME_DESCRIPTION))
+            val itemImageUrl = getString(getColumnIndexOrThrow(FeedReaderContract.FeedEntry.COLUMN_NAME_IMAGE_URL))
+
+            productList.add(
+                Product(
+                    id = itemId,
+                    name = itemName,
+                    price = itemPrice,
+                    description = itemDescription,
+                    imageUrl = itemImageUrl
+                )
+            )
+        }
+    }
+    cursor.close()
+
+    return productList
 }

@@ -3,6 +3,7 @@ package com.example.simple_auth_app
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.provider.BaseColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,6 +16,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.simple_auth_app.dbHandler.FeedReaderContract
+import com.example.simple_auth_app.dbHandler.FeedReaderDbHelper
 import com.example.simple_auth_app.ui.theme.Simple_auth_appTheme
 
 class MainActivity : ComponentActivity() {
@@ -40,6 +43,8 @@ fun LoginScreen(modifier: Modifier = Modifier) {
     val PREF_NAME = "MyPref"
     val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     var session by remember { mutableStateOf(prefs.getBoolean("State", false)) }
+
+
 
     Column(
         modifier = modifier
